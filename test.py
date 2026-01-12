@@ -30,13 +30,13 @@ with tab2:
     with st.form("category_form", clear_on_submit=True):
         kat_nazwa = st.text_input("Nazwa kategorii")
         kat_opis = st.text_area("Opis")
-        submit_kat = st.form_submit_button("Zapisz kategorię")
+        submit_kat = st.form_submit_button("Zapisz ")
 
         if submit_kat:
             if kat_nazwa:
                 try:
                     data = {"nazwa": kat_nazwa, "opis": kat_opis}
-                    supabase.table("Kategorie").insert(data).execute()
+                    supabase.table("").insert(data).execute()
                     st.success(f"Dodano kategorię: {kat_nazwa}")
                 except Exception as e:
                     st.error(f"Błąd zapisu: {e}")
@@ -49,7 +49,7 @@ with tab1:
    
     # Pobranie aktualnych kategorii do listy rozwijanej
     try:
-        categories_res = supabase.table("Kategorie").select("id, nazwa").execute()
+        categories_res = supabase.table("kategorie").select("id, nazwa").execute()
         categories_data = categories_res.data
     except Exception as e:
         st.error("Nie udało się pobrać kategorii.")
@@ -93,7 +93,7 @@ with tab3:
    
     with col1:
         st.subheader("Kategorie")
-        kat_view = supabase.table("Kategorie").select("id, nazwa, opis").execute()
+        kat_view = supabase.table("kategorie").select("id, nazwa, opis").execute()
         if kat_view.data:
             st.dataframe(kat_view.data, use_container_width=True)
         else:
