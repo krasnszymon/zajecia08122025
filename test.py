@@ -2,75 +2,67 @@ import streamlit as st
 from supabase import create_client, Client
 
 # --- KONFIGURACJA POŁĄCZENIA ---
-# Dane skopiowane z Twojego kodu - upewnij się, że są w 100% poprawne
 URL = "https://smxblirvwlgrezohkcyr.supabase.co"
 KEY = "sb_publishable_ywKAKTzluGPE-5sU-bhsFQ_-8wQUxjv"
 
 @st.cache_resource
 def init_connection():
-    """Inicjalizuje połączenie z bazą danych raz."""
     return create_client(URL, KEY)
 
-# Inicjalizacja klienta
 try:
     supabase = init_connection()
 except Exception as e:
-    st.error(f"Błąd połączenia z Supabase: {e}")
+    st.error(f"Błąd połączenia: {e}")
     st.stop()
 
-st.set_page_config(page_title="Zarządzanie Magazynem", layout="centered")
-st.title("📦 System Zarządzania Produktami")
+st.set_page_config(page_title="Wynajem Sprzętu Eventowego", layout="centered")
+st.title("🎸 System Wynajmu Sprzętu")
 
 # --- ZAKŁADKI ---
-tab1, tab2, tab3 = st.tabs([" Dodaj Produkt", "➕ Dodaj Kategorię", "📊 Podgląd Bazy"])
+tab1, tab2, tab3 = st.tabs(["📋 Dodaj Sprzęt", "📁 Kategorie Sprzętu", "📊 Stan Magazynu"])
 
-# --- DODAWANIE KATEGORII (TABELA: kategorie) ---
+# --- KATEGORIE ---
 with tab2:
-    st.header("Nowa Kategoria")
-    with st.form("category_form", clear_on_submit=True):
-        kat_nazwa = st.text_input("Nazwa kategorii")
-        kat_opis = st.text_area("Opis")
-        submit_kat = st.form_submit_button("Zapisz")
+    st.header("Nowa Grupa Sprzętowa")
+    with st.form("event_category_form", clear_on_submit=True):
+        kat_nazwa = st.text_input("Nazwa grupy (np. Multimedia, Meble)")
+        kat_opis = st.text_area("Opis przeznaczenia")
+        submit_kat = st.form_submit_button("Zarejestruj Grupę")
 
         if submit_kat:
             if kat_nazwa:
                 try:
-                    # Dane dopasowane do Twojego schematu (nazwa, opis)
                     data = {"nazwa": kat_nazwa, "opis": kat_opis}
-                    # FIX: Wcześniej miałeś puste cudzysłowy table(""). Teraz jest "kategorie"
                     supabase.table("kategorie").insert(data).execute()
-                    st.success(f"Dodano kategorię: {kat_nazwa}")
+                    st.success(f"Grupa '{kat_nazwa}' została utworzona.")
                 except Exception as e:
-                    st.error(f"Błąd zapisu kategorii: {e}")
-                    st.info("Upewnij się, że kolumna 'nazwa' w bazie ma typ TEXT, a nie BIGINT.")
+                    st.error(f"Błąd: {e}")
             else:
-                st.error("Nazwa kategorii jest wymagana!")
+                st.error("Podaj nazwę grupy!")
 
-# --- DODAWANIE PRODUKTU (TABELA: Produkty) ---
+# --- SPRZĘT (PRODUKTY) ---
 with tab1:
-    st.header("Nowy Produkt")
+    st.header("Dodaj Sprzęt do Wynajmu")
     
-    # Pobranie aktualnych kategorii do listy rozwijanej
     try:
         categories_res = supabase.table("kategorie").select("id, nazwa").execute()
         categories_data = categories_res.data
     except Exception as e:
-        st.error(f"Nie udało się pobrać kategorii: {e}")
+        st.error(f"Błąd pobierania grup: {e}")
         categories_data = []
     
     if not categories_data:
-        st.warning("Najpierw dodaj przynajmniej jedną kategorię w zakładce obok!")
+        st.warning("Najpierw zdefiniuj grupy sprzętowe w zakładce obok!")
     else:
-        # Mapowanie nazwy na ID
         cat_options = {item['nazwa']: item['id'] for item in categories_data}
         
-        with st.form("product_form", clear_on_submit=True):
-            prod_nazwa = st.text_input("Nazwa produktu")
-            prod_liczba = st.number_input("Liczba (sztuki)", min_value=0, step=1)
-            prod_cena = st.number_input("Cena", min_value=0.0, step=0.01, format="%.2f")
-            prod_kat_nazwa = st.selectbox("Kategoria", options=list(cat_options.keys()))
+        with st.form("equipment_form", clear_on_submit=True):
+            prod_nazwa = st.text_input("Nazwa urządzenia/przedmiotu")
+            prod_liczba = st.number_input("Ilość dostępnych sztuk", min_value=1, step=1)
+            prod_cena = st.number_input("Cena za dobę wynajmu (zł)", min_value=0.0, step=0.50, format="%.2f")
+            prod_kat_nazwa = st.selectbox("Przypisz do grupy", options=list(cat_options.keys()))
             
-            submit_prod = st.form_submit_button("Dodaj produkt")
+            submit_prod = st.form_submit_button("Dodaj do Inwentarza")
             
             if submit_prod:
                 if prod_nazwa:
@@ -78,42 +70,28 @@ with tab1:
                         product_data = {
                             "nazwa": prod_nazwa,
                             "liczba": prod_liczba,
-                            "cena": prod_cena,
+                            "cena": float(prod_cena),
                             "kategorie_id": cat_options[prod_kat_nazwa]
                         }
-                        # FIX: Używamy "Produkty" przez duże P, tak jak masz na screenie bazy
+                        # Używamy Twojej tabeli "Produkty" jako inwentarza sprzętu
                         supabase.table("Produkty").insert(product_data).execute()
-                        st.success(f"Produkt '{prod_nazwa}' został dodany.")
+                        st.success(f"Sprzęt '{prod_nazwa}' jest gotowy do wynajmu.")
                     except Exception as e:
-                        st.error(f"Błąd podczas dodawania produktu: {e}")
+                        st.error(f"Błąd zapisu: {e}")
                 else:
-                    st.error("Nazwa produktu jest wymagana!")
+                    st.error("Nazwa sprzętu jest wymagana!")
 
-# --- PODGLĄD DANYCH ---
+# --- PODGLĄD ---
 with tab3:
-    st.header("Aktualny stan bazy")
+    st.header("Podgląd Magazynu")
     
-    col1, col2 = st.columns(2)
+    res_kat = supabase.table("kategorie").select("id, nazwa, opis").execute()
+    res_prod = supabase.table("Produkty").select("id, nazwa, liczba, cena, kategorie_id").execute()
     
-    with col1:
-        st.subheader("Kategorie")
-        try:
-            kat_view = supabase.table("kategorie").select("id, nazwa, opis").execute()
-            if kat_view.data:
-                st.dataframe(kat_view.data, use_container_width=True)
-            else:
-                st.info("Brak kategorii.")
-        except Exception as e:
-            st.error(f"Błąd wyświetlania kategorii: {e}")
-    
-    with col2:
-        st.subheader("Produkty")
-        try:
-            # FIX: Wybieramy kolumny zgodnie z Twoim schematem Produkty
-            prod_view = supabase.table("Produkty").select("id, nazwa, liczba, cena, kategorie_id").execute()
-            if prod_view.data:
-                st.dataframe(prod_view.data, use_container_width=True)
-            else:
-                st.info("Brak produktów.")
-        except Exception as e:
-            st.error(f"Błąd wyświetlania produktów: {e}")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("Grupy")
+        st.dataframe(res_kat.data, use_container_width=True)
+    with c2:
+        st.subheader("Inwentarz")
+        st.dataframe(res_prod.data, use_container_width=True)
